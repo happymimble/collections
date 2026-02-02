@@ -1,0 +1,30 @@
+{
+  "id": "example",
+  "displayName": "Example plugin",
+  "version": "1.0.0",
+  "searchableFields": [
+    {
+      "id": "query",
+      "label": "Search text",
+      "type": "text",
+      "placeholder": "Enter search..."
+    },
+    {
+      "id": "category",
+      "label": "Category",
+      "type": "select",
+      "options": [
+        { "value": "any", "label": "Any" },
+        { "value": "a", "label": "Category A" },
+        { "value": "b", "label": "Category B" }
+      ]
+    },
+    {
+      "id": "minValue",
+      "label": "Min value",
+      "type": "number",
+      "min": 0,
+      "placeholder": "0"
+    }
+  ]
+}
