@@ -46,6 +46,8 @@ export interface SearchableField {
   /** For number: optional min/max (UI validation). */
   min?: number;
   max?: number;
+  /** When true, this field shows autocomplete UI and plugin.autocomplete is called with its value. */
+  autocomplete?: boolean;
 }
 
 /**
