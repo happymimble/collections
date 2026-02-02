@@ -204,8 +204,11 @@ export interface AutocompleteSuggestion {
 // =============================================================================
 
 /**
- * Operators for matching a CardData field (or valuation) against a value.
- * "exists" checks presence (value optional); "in" expects array value.
+ * Operators for declarative rules: equality, range, contains.
+ * - eq, neq, in: equality (in expects array value).
+ * - gt, gte, lt, lte: numeric/date range.
+ * - contains: string/array contains (value: string or single element).
+ * - exists: field is present (value optional).
  */
 export type GroupRuleOperator =
   | "eq"
@@ -219,61 +222,100 @@ export type GroupRuleOperator =
   | "exists";
 
 /**
- * A single rule: "field OP value". Groups are defined as a list of rules;
- * logical relationship between rules (AND/OR) is expressed at Group level.
+ * Declarative rule: "field OP value". Evaluated by the core against CardData
+ * using dot-notation field paths (e.g. "title", "valuations.price.value").
  */
-export interface GroupRule {
+export interface DeclarativeGroupRule {
+  kind: "declarative";
   /** Stable id for the rule. */
   id: string;
-
-  /**
-   * CardData path: top-level ("title", "type", "sourcePluginId") or
-   * valuation ("valuations.price", "valuations.grade"). Dot notation.
-   */
+  /** CardData path (dot notation). */
   field: string;
-
-  /** Comparison operator. */
   operator: GroupRuleOperator;
-
-  /**
-   * Value to compare against. Type depends on operator (e.g. string for eq,
-   * number for gt, string[] for in). Omit for "exists".
-   */
+  /** Omit for "exists". */
   value?: unknown;
 }
 
 /**
+ * Computed rule: membership for this part is determined by the plugin's
+ * evaluateGroup(card, group). Used when domain logic cannot be expressed
+ * declaratively (e.g. complex grading, external lookup).
+ */
+export interface ComputedGroupRule {
+  kind: "computed";
+  id: string;
+  /** Plugin that provides evaluateGroup(card, group). */
+  pluginId: string;
+}
+
+/**
+ * A single rule: either declarative (field/operator/value) or computed (plugin).
+ * Groups combine rules with ruleLogic (and/or).
+ */
+export type GroupRule = DeclarativeGroupRule | ComputedGroupRule;
+
+/**
  * Logical relationship between rules in a group.
- * - "and": card must match all rules.
- * - "or": card must match at least one rule.
+ * - and: card must match all rules.
+ * - or: card must match at least one rule.
  */
 export type GroupRuleLogic = "and" | "or";
 
 /**
- * A logical group: a named set of rules. Membership is not stored;
- * at runtime, evaluate rules against CardData to get the set of cards.
- * Persisted as definition only; derived card list can be cached in memory
- * but not as source of truth.
+ * Origin of a group definition. Affects UX (e.g. suggested can show plugin name,
+ * user-created is fully editable).
  */
-export interface Group {
-  /** Unique id. */
+export type GroupSource = "user" | "suggested";
+
+/**
+ * Persisted group definition. Only definitions are stored; membership is
+ * always computed from cached CardData at runtime.
+ *
+ * - user: created by the user (name, rules fully editable).
+ * - suggested: from a plugin; user may add/rename; suggestedTemplateId links
+ *   to the plugin's suggested group id for updates.
+ */
+export interface GroupDefinition {
+  /** Unique id (e.g. UUID for user, plugin:id for suggested). */
   id: string;
 
-  /** Display name. */
+  /** Display name (user-editable; for suggested, may override plugin name). */
   name: string;
 
-  /** Optional description. */
   description?: string;
 
-  /** Rules that define membership (e.g. type eq "coin", valuations.price.gte 100). */
+  /** user = user-created; suggested = from plugin. */
+  source: GroupSource;
+
+  /** Set when source === "suggested"; which plugin suggested this group. */
+  suggestedByPluginId?: string;
+
+  /**
+   * When source === "suggested", the id of the suggestion from the plugin.
+   * Used to match plugin updates (e.g. re-suggest with same template id).
+   */
+  suggestedTemplateId?: string;
+
+  /** Rules that define membership (declarative and/or one computed rule). */
   rules: GroupRule[];
 
-  /** How to combine rules: all must match (and) or any (or). */
   ruleLogic: GroupRuleLogic;
 
-  /** When the group was created (ISO 8601). */
   createdAt: string;
+  updatedAt?: string;
+}
 
-  /** When the group was last updated (ISO 8601). */
+/**
+ * In-memory shape for plugin-suggested groups (before persistence).
+ * When the user "adds" a suggestion, the app persists it as GroupDefinition
+ * with source: "suggested", suggestedByPluginId, suggestedTemplateId = id.
+ */
+export interface Group {
+  id: string;
+  name: string;
+  description?: string;
+  rules: GroupRule[];
+  ruleLogic: GroupRuleLogic;
+  createdAt: string;
   updatedAt?: string;
 }

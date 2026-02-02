@@ -113,7 +113,13 @@ const plugin: Plugin = {
       name: "High value (example)",
       description: "Items with value ≥ 150",
       rules: [
-        { id: "r1", field: "valuations.value.value", operator: "gte", value: 150 },
+        {
+          kind: "declarative",
+          id: "r1",
+          field: "valuations.value.value",
+          operator: "gte",
+          value: 150,
+        },
       ],
       ruleLogic: "and",
       createdAt: new Date().toISOString(),
